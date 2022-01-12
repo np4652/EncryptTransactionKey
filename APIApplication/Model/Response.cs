@@ -12,4 +12,10 @@ namespace APIApplication.Model
         [JsonIgnore]
         public bool IsModelValid { get; set; }
     }
+
+    public class APIResponse
+    {
+        public int status { get; set; }
+        public string msg { get; set; }
+    }
 }
