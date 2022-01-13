@@ -11,7 +11,7 @@ namespace EncryptTransactionKey.Model
     public class EncryptRequest
     {
         [Required]
-        public int TID { get; set; }
+        public string TID { get; set; }
         public string IP { get; set; }
     }
 }
