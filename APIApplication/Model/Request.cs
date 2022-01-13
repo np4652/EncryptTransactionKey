@@ -12,5 +12,6 @@ namespace EncryptTransactionKey.Model
     {
         [Required]
         public int TID { get; set; }
+        public string IP { get; set; }
     }
 }

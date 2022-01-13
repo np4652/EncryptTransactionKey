@@ -33,7 +33,7 @@ namespace APIApplication.Controllers
             return Ok("Welcome");
         }
 
-        [HttpGet(nameof(Encrypt))]
+        [HttpPost(nameof(Encrypt))]
         public async Task<BaseResponse<APIResponse>> Encrypt(EncryptRequest request)
         {
             string requestedUrl = string.Format(APIUrl, request.TID.ToString());
@@ -52,6 +52,7 @@ namespace APIApplication.Controllers
             try
             {
                 RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+                request.IP = RemoteIP;
                 var sqlParam = new DynamicParameters();
                 sqlParam.Add("IP", RemoteIP, DbType.String);
                 bool isIPValid = await Task.FromResult(_dapper.Insert<bool>(@"select 1 from IPMaster where [IP]=@IP"
