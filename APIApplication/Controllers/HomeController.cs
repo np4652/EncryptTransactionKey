@@ -19,7 +19,7 @@ namespace APIApplication.Controllers
     public class HomeController : ControllerBase
     {
         private readonly IDapper _dapper;
-        private const string APIUrl = "https://teamrijent.in/admin/CoinService.aspx?TID={0}";
+        private const string APIUrl = "https://teamrijent.in/admin/CoinService.aspx?TID={0}&option1={1}&option2={2}&option3={3}&option4={4}&option5={5}";
         private string RemoteIP = string.Empty;
         private const string key = "fa0cd267144f93e9481bf0001564baf51b21";
         public HomeController(IDapper dapper)
@@ -36,7 +36,7 @@ namespace APIApplication.Controllers
         [HttpPost(nameof(Encrypt))]
         public async Task<BaseResponse<APIResponse>> Encrypt(EncryptRequest request)
         {
-            string requestedUrl = string.Format(APIUrl, request.TID.ToString());
+            string requestedUrl = string.Format(APIUrl, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
             var response = new BaseResponse<APIResponse>
             {
                 StatusCode = 503,
@@ -98,13 +98,10 @@ namespace APIApplication.Controllers
                 response.Status = "Failed";
                 response.Data.msg = ex.Message;
             }
-
         Finish:
             saveLog(request, requestedUrl, APIRes, response);
             return response;
         }
-
-
 
         [HttpPost(nameof(Decryp))]
         public async Task<BaseResponse<string>> Decryp([FromBody] Request request)
