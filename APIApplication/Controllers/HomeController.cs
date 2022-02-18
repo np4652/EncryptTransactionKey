@@ -18,10 +18,14 @@ namespace APIApplication.Controllers
     [Route("api/")]
     public class HomeController : ControllerBase
     {
+        #region variables
         private readonly IDapper _dapper;
         private const string APIUrl = "https://teamrijent.in/admin/CoinService.aspx?TID={0}&option1={1}&option2={2}&option3={3}&option4={4}&option5={5}";
+        private string generateAddress = "http://new.teamrijent.in:3004/generate_address/{0}";
+        private string getBalance = "http://new.teamrijent.in:3004/get_token_balance/{0}?walletAddress={1}&contractAddress={2}";
         private string RemoteIP = string.Empty;
         private const string key = "fa0cd267144f93e9481bf0001564baf51b21";
+        #endregion
         public HomeController(IDapper dapper)
         {
             _dapper = dapper;
@@ -32,6 +36,8 @@ namespace APIApplication.Controllers
         {
             return Ok("Welcome");
         }
+
+        #region APIs
 
         [HttpPost(nameof(Encrypt))]
         public async Task<BaseResponse<APIResponse>> Encrypt(EncryptRequest request)
@@ -53,11 +59,7 @@ namespace APIApplication.Controllers
             {
                 RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
                 request.IP = RemoteIP;
-                var sqlParam = new DynamicParameters();
-                sqlParam.Add("IP", RemoteIP, DbType.String);
-                bool isIPValid = await Task.FromResult(_dapper.Insert<bool>(@"select 1 from IPMaster where [IP]=@IP"
-                     , sqlParam,
-                     commandType: CommandType.Text));
+                bool isIPValid = await IsIPValid(request.IP);
                 if (!isIPValid)
                 {
                     response.Data.msg = "Invalid IP";
@@ -71,12 +73,7 @@ namespace APIApplication.Controllers
                     goto Finish;
                 #endregion
                 /* End TID Validation */
-
-                var salt = await Task.FromResult(_dapper.Insert<string>(@"select top 1 [Salt] from SecretKey(nolock)"
-                     , null,
-                     commandType: CommandType.Text));
-
-                plainText = string.Concat(salt, key);
+                plainText = string.Concat(GetSalt(), key);
                 if (string.IsNullOrEmpty(plainText))
                 {
                     response.Data.msg = "Key not found";
@@ -129,6 +126,207 @@ namespace APIApplication.Controllers
             return response;
         }
 
+        [HttpPost(nameof(GenrateBinanceAddress))]
+        public async Task<BaseResponse<BinanceAPIResponse<AddressWithPrivateKey>>> GenrateBinanceAddress(BaseRequest request)
+        {
+            BaseResponse<BinanceAPIResponse<AddressWithPrivateKey>> genrateResponse(BinanceAddress binanceAddress)
+            {
+                return new BaseResponse<BinanceAPIResponse<AddressWithPrivateKey>>
+                {
+                    StatusCode = 1,
+                    Status = "Success",
+                    Data = new BinanceAPIResponse<AddressWithPrivateKey>
+                    {
+                        success = true,
+                        result = new Result<AddressWithPrivateKey>
+                        {
+                            message = new AddressWithPrivateKey
+                            {
+                                address = binanceAddress.Address,
+                                privateKey = binanceAddress.PrivateKey
+                            }
+                        }
+                    }
+                };
+            }
+            string requestedUrl = string.Format(generateAddress, request.TID.ToString());
+            var deserializeResponse = new BinanceAPIResponse<AddressWithPrivateKey>();
+            var response = new BaseResponse<BinanceAPIResponse<AddressWithPrivateKey>>
+            {
+                StatusCode = 503,
+                Status = "Bad Request",
+                Data = deserializeResponse
+            };
+            try
+            {
+                RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+                request.IP = RemoteIP;
+                bool isIPValid = await IsIPValid(request.IP);
+                if (!isIPValid)
+                {
+                    response.Status = "Invalid IP";
+                    goto Finish;
+                }
+                var binanceAddress = await IFAddressExists(request.TID);
+                if (binanceAddress != null && !string.IsNullOrEmpty(binanceAddress.Address))
+                {
+                    response = genrateResponse(binanceAddress);
+                    goto Finish;
+                }
+
+                using (var httpClient = new HttpClient())
+                {
+                    using (var res = await httpClient.GetAsync(requestedUrl))
+                    {
+                        string result = await res.Content.ReadAsStringAsync();
+                        deserializeResponse = JsonConvert.DeserializeObject<BinanceAPIResponse<AddressWithPrivateKey>>(result);
+                    }
+                }
+                if (deserializeResponse != null && deserializeResponse.success)
+                {
+                    deserializeResponse.result.message.privateKey = Crypto.O.Encrypt(request.TID, deserializeResponse.result.message.privateKey);
+                    binanceAddress = await SaveBinanceAddress(new BinanceAddress
+                    {
+                        TID = request.TID,
+                        Address = deserializeResponse.result.message.address,
+                        PrivateKey = deserializeResponse.result.message.privateKey
+                    });
+                    if (!string.IsNullOrEmpty(binanceAddress.Address))
+                        response = genrateResponse(binanceAddress);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "Failed";
+            }
+        Finish:
+            if (response.Data != null && response.Data.result != null && response.Data.result.message != null)
+                response.Data.result.message.privateKey = string.Empty;
+            saveLog(JsonConvert.SerializeObject(request), requestedUrl, JsonConvert.SerializeObject(deserializeResponse), JsonConvert.SerializeObject(response));
+            return response;
+        }
+
+        [HttpPost(nameof(GetPrivateKey))]
+        public async Task<BaseResponse<BinanceAddress>> GetPrivateKey(PrivateKeyRequest request)
+        {
+            var response = new BaseResponse<BinanceAddress>
+            {
+                StatusCode = 503,
+                Status = "Bad Request"
+            };
+            try
+            {
+                RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+                bool isIPValid = await IsIPValid(RemoteIP);
+                if (!isIPValid)
+                {
+                    response.Status = "Invalid IP";
+                    goto Finish;
+                }
+                var sqlQuery = @"Select Id,TID,[Address],PrivateKey from BinanceAddress(nolock) where [Address] = @Address";
+                var param = new DynamicParameters();
+                param.Add("Address", request.Address, DbType.String);
+                var binanceAddress = await _dapper.GetAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+                if (binanceAddress != null && !string.IsNullOrEmpty(binanceAddress.PrivateKey))
+                {
+                    binanceAddress.PrivateKey = Crypto.O.Decrypt(binanceAddress.TID, binanceAddress.PrivateKey);
+                    response = new BaseResponse<BinanceAddress>
+                    {
+                        StatusCode = 200,
+                        Status = "Success",
+                        Data = binanceAddress
+                    };
+                }
+                return response;
+            }
+            catch (Exception ex)
+            {
+                response.Status = "Failed";
+            }
+        Finish:
+            return response;
+        }
+
+        [HttpPost(nameof(GetBalance))]
+        public async Task<BaseResponse<BinanceAPIResponse<string>>> GetBalance(BallanceRequest request)
+        {
+            string requestedUrl = string.Format(getBalance, request.TID.ToString(), request.WalletAddress, request.ContractAddress);
+            var deserializeResponse = new BinanceAPIResponse<string>();
+            var response = new BaseResponse<BinanceAPIResponse<string>>
+            {
+                StatusCode = 503,
+                Status = "Bad Request",
+                Data = deserializeResponse
+            };
+            try
+            {
+                RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+                request.IP = RemoteIP;
+                bool isIPValid = await IsIPValid(request.IP);
+                if (!isIPValid)
+                {
+                    response.Status = "Invalid IP";
+                    goto Finish;
+                }
+                using (var httpClient = new HttpClient())
+                {
+                    using (var res = await httpClient.GetAsync(requestedUrl))
+                    {
+                        string result = await res.Content.ReadAsStringAsync();
+                        deserializeResponse = JsonConvert.DeserializeObject<BinanceAPIResponse<string>>(result);
+                    }
+                }
+                if (deserializeResponse != null && deserializeResponse.success)
+                {
+                    response = new BaseResponse<BinanceAPIResponse<string>>
+                    {
+                        StatusCode = 200,
+                        Status = "Success",
+                        Data = new BinanceAPIResponse<string>
+                        {
+                            success = deserializeResponse.success,
+                            result = new Result<string>
+                            {
+                                message = deserializeResponse.result.message
+                            }
+                        }
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "Failed";
+            }
+        Finish:
+            saveLog(JsonConvert.SerializeObject(request), requestedUrl, JsonConvert.SerializeObject(deserializeResponse), JsonConvert.SerializeObject(response));
+            return response;
+        }
+        
+        #endregion
+
+        #region Methods
+        private async Task<BinanceAddress> SaveBinanceAddress(BinanceAddress binanceAddress)
+        {
+
+            var sqlQuery = @"IF(Select count(1) from BinanceAddress where TID = @TID) = 0
+                                insert into BinanceAddress(TID,[Address],PrivateKey,EntryOn) values (@TID,@Address,@PrivateKey,GetDate())
+                             Select Id,TID,[Address],PrivateKey from BinanceAddress";
+            var param = new DynamicParameters();
+            param.Add("TID", binanceAddress.TID, DbType.String);
+            param.Add("Address", binanceAddress.Address, DbType.String);
+            param.Add("PrivateKey", binanceAddress.PrivateKey, DbType.String);
+            binanceAddress = await _dapper.InsertAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            return binanceAddress;
+        }
+
+        private async Task<BinanceAddress> IFAddressExists(string TID)
+        {
+            var sqlQuery = @"Select Id,TID,[Address],PrivateKey from BinanceAddress where TID = @TID";
+            var param = new DynamicParameters();
+            param.Add("TID", TID, DbType.String);
+            var binanceAddress = await _dapper.InsertAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            return binanceAddress ?? new BinanceAddress();
+        }
         private async Task<APIResponse> callAPI(string url)
         {
             APIResponse deserializeResponse = new APIResponse();
@@ -149,7 +347,6 @@ namespace APIApplication.Controllers
             }
             return deserializeResponse ?? new APIResponse();
         }
-
         private string ReplaceSpecialCharecter(string arg)
         {
             arg = Regex.Replace(arg ?? string.Empty, @"[^0-9a-zA-Z]+", "");
@@ -208,10 +405,8 @@ namespace APIApplication.Controllers
         Finish:
             return response;
         }
-
         private bool IsNumeric(string s) => Regex.IsMatch(s, @"^[0-9]+$") && s != "";
-
-        private async Task saveLog(EncryptRequest request,string requestedUrl,APIResponse APIRes, BaseResponse<APIResponse> response)
+        private async Task saveLog(EncryptRequest request, string requestedUrl, APIResponse APIRes, BaseResponse<APIResponse> response)
         {
             BaseResponse<APIResponse> newResponse = new BaseResponse<APIResponse>
             {
@@ -225,12 +420,12 @@ namespace APIApplication.Controllers
             };
             //newResponse = response;
             /* Save log */
-            if (newResponse.StatusCode==1 && !string.IsNullOrEmpty(newResponse.Data.msg))
+            if (newResponse.StatusCode == 1 && !string.IsNullOrEmpty(newResponse.Data.msg))
             {
                 Random _random = new Random();
                 var arr = newResponse.Data.msg.ToList();
                 int start = _random.Next(0, 30), end = _random.Next(31, 60);
-                if(end<arr.Count)
+                if (end < arr.Count)
                     arr.RemoveRange(start, end);
                 else
                     arr.RemoveRange(1, 20);
@@ -242,7 +437,33 @@ namespace APIApplication.Controllers
             param.Add("OutgoingRequest", requestedUrl, DbType.String);
             param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
             param.Add("Remark", "Encrypted Data", DbType.String);
-            await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            await Task.FromResult(_dapper.InsertAsync<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
         }
+        private async Task saveLog(string request, string requestedUrl, string APIRes, string response)
+        {
+            var param = new DynamicParameters();
+            param.Add("IncomingRequest", request, DbType.String);
+            param.Add("SelfResponse", response, DbType.String);
+            param.Add("OutgoingRequest", requestedUrl, DbType.String);
+            param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
+            param.Add("Remark", "Encrypted Data", DbType.String);
+            await Task.FromResult(_dapper.InsertAsync<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+        }
+        private async Task<string> GetSalt()
+        {
+            string salt = await _dapper.GetAsync<string>(@"select top 1 [Salt] from SecretKey(nolock)"
+                     , null,
+                     commandType: CommandType.Text);
+            return salt ?? string.Empty;
+        }
+        private async Task<bool> IsIPValid(string IP)
+        {
+            var sqlParam = new DynamicParameters();
+            sqlParam.Add("IP", IP, DbType.String);
+            return await Task.FromResult(_dapper.Insert<bool>(@"select 1 from IPMaster(nolock) where [IP]=@IP"
+                     , sqlParam,
+                     commandType: CommandType.Text));
+        }
+        #endregion Methods End
     }
 }

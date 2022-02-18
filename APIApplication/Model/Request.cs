@@ -8,15 +8,34 @@ namespace EncryptTransactionKey.Model
         public string PlainText { get; set; }
     }
 
-    public class EncryptRequest
+    public class EncryptRequest : BaseRequest
     {
-        [Required]
-        public string TID { get; set; }
-        public string IP { get; set; }
+        //[Required]
+        //public string TID { get; set; }
+        //public string IP { get; set; }
         public string Option1 { get; set; }
         public string Option2 { get; set; }
         public string Option3 { get; set; }
         public string Option4 { get; set; }
         public string Option5 { get; set; }
+    }
+
+
+    public class BaseRequest
+    {
+        [Required]
+        public string TID { get; set; }
+        public string IP { get; set; }
+    }
+
+    public class PrivateKeyRequest
+    {
+        public string Address { get; set; }
+    }
+
+    public class BallanceRequest : BaseRequest
+    {
+        public string WalletAddress { get; set; }
+        public string ContractAddress { get; set; }
     }
 }
