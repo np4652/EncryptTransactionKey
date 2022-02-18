@@ -59,9 +59,10 @@ namespace EncryptTransactionKey.Helpers
                     byte[] decipheredBytes = e.ProcessBlock(data, 0, data.Length);
                     result = Encoding.UTF8.GetString(decipheredBytes, 0, decipheredBytes.Length);
                     var splitData = result.Split((char)160);
+                    //var splitData = result.Split(" ");
                     if (splitData.Length >= 1)
                     {
-                        result = splitData[1];
+                       var results = splitData[1];
                     }
                 }
             }
@@ -71,7 +72,6 @@ namespace EncryptTransactionKey.Helpers
             }
             return result;
         }
-
         public string Encrypt(string EncryptionKey, string clearText)
         {
             byte[] clearBytes = Encoding.Unicode.GetBytes(clearText);

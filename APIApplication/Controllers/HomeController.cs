@@ -101,7 +101,7 @@ namespace APIApplication.Controllers
         }
 
         [HttpPost(nameof(Decryp))]
-        public async Task<BaseResponse<string>> Decryp([FromBody] Request request)
+        public BaseResponse<string> Decryp([FromBody] Request request)
         {
             var response = new BaseResponse<string>
             {
@@ -315,7 +315,7 @@ namespace APIApplication.Controllers
             param.Add("TID", binanceAddress.TID, DbType.String);
             param.Add("Address", binanceAddress.Address, DbType.String);
             param.Add("PrivateKey", binanceAddress.PrivateKey, DbType.String);
-            binanceAddress = await _dapper.InsertAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            binanceAddress = await Task.FromResult(_dapper.Insert<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
             return binanceAddress;
         }
 
@@ -324,7 +324,7 @@ namespace APIApplication.Controllers
             var sqlQuery = @"Select Id,TID,[Address],PrivateKey from BinanceAddress where TID = @TID";
             var param = new DynamicParameters();
             param.Add("TID", TID, DbType.String);
-            var binanceAddress = await _dapper.InsertAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            var binanceAddress = await Task.FromResult(_dapper.Insert<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
             return binanceAddress ?? new BinanceAddress();
         }
         private async Task<APIResponse> callAPI(string url)
@@ -437,7 +437,8 @@ namespace APIApplication.Controllers
             param.Add("OutgoingRequest", requestedUrl, DbType.String);
             param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
             param.Add("Remark", "Encrypted Data", DbType.String);
-            await Task.FromResult(_dapper.InsertAsync<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            //await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            //Resolve here;
         }
         private async Task saveLog(string request, string requestedUrl, string APIRes, string response)
         {
@@ -447,7 +448,8 @@ namespace APIApplication.Controllers
             param.Add("OutgoingRequest", requestedUrl, DbType.String);
             param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
             param.Add("Remark", "Encrypted Data", DbType.String);
-            await Task.FromResult(_dapper.InsertAsync<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            //resolve here;
         }
         private async Task<string> GetSalt()
         {
@@ -460,9 +462,9 @@ namespace APIApplication.Controllers
         {
             var sqlParam = new DynamicParameters();
             sqlParam.Add("IP", IP, DbType.String);
-            return await Task.FromResult(_dapper.Insert<bool>(@"select 1 from IPMaster(nolock) where [IP]=@IP"
+            return await _dapper.GetAsync<bool>(@"select 1 from IPMaster(nolock) where [IP]=@IP"
                      , sqlParam,
-                     commandType: CommandType.Text));
+                     commandType: CommandType.Text);
         }
         #endregion Methods End
     }

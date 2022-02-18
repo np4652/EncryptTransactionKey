@@ -22,11 +22,11 @@ namespace APIApplication
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddDbContext<DataContext.AppContext>(options =>
-                          options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")
-                          ));
+            //services.AddDbContext<DataContext.AppContext>(options =>
+            //              options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")
+            //              ));
             //Register dapper in scope    
-            services.AddScoped<IDapper, Services.Dapper>();
+            services.AddSingleton<IDapper, Services.Dapper>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
