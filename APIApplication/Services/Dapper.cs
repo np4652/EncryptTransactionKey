@@ -23,22 +23,37 @@ namespace APIApplication.Services
 
         public int Execute(string sp, DynamicParameters parms, CommandType commandType = CommandType.StoredProcedure)
         {
-            throw new NotImplementedException();
+            int i = 0;
+            try
+            {
+                using (IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring)))
+                {
+                    i = db.Execute(sp, parms, commandType: commandType);
+                }
+            }
+            catch (Exception ex)
+            {
+                i = -2;
+            }
+            return i;
         }
 
         public T Get<T>(string sp, DynamicParameters parms, CommandType commandType = CommandType.Text)
         {
-            using IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring));
-            return db.Query<T>(sp, parms, commandType: commandType).FirstOrDefault();
+            T result;
+            try
+            {
+                using (IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring)))
+                {
+                    result = db.Query<T>(sp, parms, commandType: commandType).FirstOrDefault();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return result;
         }
-
-        public async Task<T> GetAsync<T>(string sp, DynamicParameters parms, CommandType commandType = CommandType.Text)
-        {
-            using IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring));
-            var result = await db.QueryAsync<T>(sp, parms, commandType: commandType);
-            return result.FirstOrDefault();
-        }
-
         public List<T> GetAll<T>(string sp, DynamicParameters parms, CommandType commandType = CommandType.StoredProcedure)
         {
             using IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring));
@@ -106,33 +121,30 @@ namespace APIApplication.Services
             return result;
         }
 
-        public T Update<T>(string sp, DynamicParameters parms, CommandType commandType = CommandType.StoredProcedure)
+        public async Task<T> GetAsync<T>(string sp, DynamicParameters parms, CommandType commandType = CommandType.Text)
         {
-            T result;
             using (IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring)))
             {
-                try
+                var result = await db.QueryAsync<T>(sp, parms, commandType: commandType);
+                return result.FirstOrDefault();
+            }
+        }
+
+        public async Task<int> ExecuteAsync(string sp, DynamicParameters parms, CommandType commandType = CommandType.StoredProcedure)
+        {
+            int i = 0;
+            try
+            {
+                using (IDbConnection db = new SqlConnection(_config.GetConnectionString(Connectionstring)))
                 {
-                    using (var tran = db.BeginTransaction())
-                    {
-                        try
-                        {
-                            result = db.Query<T>(sp, parms, commandType: commandType, transaction: tran).FirstOrDefault();
-                            tran.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            tran.Rollback();
-                            throw ex;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    throw ex;
+                    i = await db.ExecuteAsync(sp, parms, commandType: commandType);
                 }
             }
-            return result;
+            catch (Exception ex)
+            {
+                i = -2;
+            }
+            return i;
         }
     }
 }

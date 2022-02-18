@@ -73,7 +73,8 @@ namespace APIApplication.Controllers
                     goto Finish;
                 #endregion
                 /* End TID Validation */
-                plainText = string.Concat(GetSalt(), key);
+                string salt = await GetSalt();
+                plainText = string.Concat(salt, key);
                 if (string.IsNullOrEmpty(plainText))
                 {
                     response.Data.msg = "Key not found";
@@ -307,7 +308,6 @@ namespace APIApplication.Controllers
         #region Methods
         private async Task<BinanceAddress> SaveBinanceAddress(BinanceAddress binanceAddress)
         {
-
             var sqlQuery = @"IF(Select count(1) from BinanceAddress where TID = @TID) = 0
                                 insert into BinanceAddress(TID,[Address],PrivateKey,EntryOn) values (@TID,@Address,@PrivateKey,GetDate())
                              Select Id,TID,[Address],PrivateKey from BinanceAddress";
@@ -315,7 +315,8 @@ namespace APIApplication.Controllers
             param.Add("TID", binanceAddress.TID, DbType.String);
             param.Add("Address", binanceAddress.Address, DbType.String);
             param.Add("PrivateKey", binanceAddress.PrivateKey, DbType.String);
-            binanceAddress = await Task.FromResult(_dapper.Insert<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
+            binanceAddress = await _dapper.GetAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            //binanceAddress = await Task.FromResult(_dapper.GetAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
             return binanceAddress;
         }
 
@@ -324,7 +325,8 @@ namespace APIApplication.Controllers
             var sqlQuery = @"Select Id,TID,[Address],PrivateKey from BinanceAddress where TID = @TID";
             var param = new DynamicParameters();
             param.Add("TID", TID, DbType.String);
-            var binanceAddress = await Task.FromResult(_dapper.Insert<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
+            var binanceAddress = await _dapper.GetAsync<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text);
+            //var binanceAddress = await Task.FromResult(_dapper.Insert<BinanceAddress>(sqlQuery, param, commandType: CommandType.Text));
             return binanceAddress ?? new BinanceAddress();
         }
         private async Task<APIResponse> callAPI(string url)
@@ -437,7 +439,16 @@ namespace APIApplication.Controllers
             param.Add("OutgoingRequest", requestedUrl, DbType.String);
             param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
             param.Add("Remark", "Encrypted Data", DbType.String);
-            //await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            try
+            {
+                //await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+                int  i = await _dapper.ExecuteAsync("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text);
+            }
+            catch(Exception ex)
+            {
+
+            }
+            
             //Resolve here;
         }
         private async Task saveLog(string request, string requestedUrl, string APIRes, string response)
@@ -448,14 +459,22 @@ namespace APIApplication.Controllers
             param.Add("OutgoingRequest", requestedUrl, DbType.String);
             param.Add("Response", JsonConvert.SerializeObject(APIRes), DbType.String);
             param.Add("Remark", "Encrypted Data", DbType.String);
-            await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
+            await _dapper.ExecuteAsync("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text);
             //resolve here;
         }
         private async Task<string> GetSalt()
         {
-            string salt = await _dapper.GetAsync<string>(@"select top 1 [Salt] from SecretKey(nolock)"
+            string salt = string.Empty;
+            try
+            {
+                salt = await _dapper.GetAsync<string>(@"select top 1 [Salt] from SecretKey(nolock)"
                      , null,
                      commandType: CommandType.Text);
+            }
+            catch(Exception ex)
+            {
+
+            }
             return salt ?? string.Empty;
         }
         private async Task<bool> IsIPValid(string IP)

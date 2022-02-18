@@ -62,7 +62,7 @@ namespace EncryptTransactionKey.Helpers
                     //var splitData = result.Split(" ");
                     if (splitData.Length >= 1)
                     {
-                       var results = splitData[1];
+                       result = splitData[1];
                     }
                 }
             }
