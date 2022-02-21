@@ -183,8 +183,13 @@ namespace APIApplication.Controllers
                         deserializeResponse = JsonConvert.DeserializeObject<BinanceAPIResponse<AddressWithPrivateKey>>(result);
                     }
                 }
-                if (deserializeResponse != null && deserializeResponse.success)
+                if (deserializeResponse != null)
                 {
+                    if (!deserializeResponse.success)
+                    {
+                        response.Data.result = deserializeResponse.result;
+                        goto Finish;
+                    }
                     deserializeResponse.result.message.privateKey = Crypto.O.Encrypt(request.TID, deserializeResponse.result.message.privateKey);
                     binanceAddress = await SaveBinanceAddress(new BinanceAddress
                     {
@@ -194,6 +199,22 @@ namespace APIApplication.Controllers
                     });
                     if (!string.IsNullOrEmpty(binanceAddress.Address))
                         response = genrateResponse(binanceAddress);
+                    //if (deserializeResponse.success)
+                    //{
+                    //    deserializeResponse.result.message.privateKey = Crypto.O.Encrypt(request.TID, deserializeResponse.result.message.privateKey);
+                    //    binanceAddress = await SaveBinanceAddress(new BinanceAddress
+                    //    {
+                    //        TID = request.TID,
+                    //        Address = deserializeResponse.result.message.address,
+                    //        PrivateKey = deserializeResponse.result.message.privateKey
+                    //    });
+                    //    if (!string.IsNullOrEmpty(binanceAddress.Address))
+                    //        response = genrateResponse(binanceAddress);
+                    //}
+                    //else
+                    //{
+                    //    response.Data.result.message = deserializeResponse.result.message;
+                    //}
                 }
             }
             catch (Exception ex)
@@ -277,8 +298,13 @@ namespace APIApplication.Controllers
                         deserializeResponse = JsonConvert.DeserializeObject<BinanceAPIResponse<string>>(result);
                     }
                 }
-                if (deserializeResponse != null && deserializeResponse.success)
+                if (deserializeResponse != null)
                 {
+                    if (!deserializeResponse.success)
+                    {
+                        response.Data.result = deserializeResponse.result;
+                        goto Finish;
+                    }
                     response = new BaseResponse<BinanceAPIResponse<string>>
                     {
                         StatusCode = 200,
@@ -302,7 +328,7 @@ namespace APIApplication.Controllers
             saveLog(JsonConvert.SerializeObject(request), requestedUrl, JsonConvert.SerializeObject(deserializeResponse), JsonConvert.SerializeObject(response));
             return response;
         }
-        
+
         #endregion
 
         #region Methods
@@ -442,13 +468,13 @@ namespace APIApplication.Controllers
             try
             {
                 //await Task.FromResult(_dapper.Insert<BaseResponse<string>>("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text));
-                int  i = await _dapper.ExecuteAsync("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text);
+                int i = await _dapper.ExecuteAsync("insert into RequestResponseLog(IncomingRequest,SelfResponse,OutgoingRequest,Response,EntryOn,Remark) values (@IncomingRequest,@SelfResponse,@OutgoingRequest,@Response,getDate(),@Remark)", param, commandType: CommandType.Text);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
 
             }
-            
+
             //Resolve here;
         }
         private async Task saveLog(string request, string requestedUrl, string APIRes, string response)
@@ -471,7 +497,7 @@ namespace APIApplication.Controllers
                      , null,
                      commandType: CommandType.Text);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
 
             }
