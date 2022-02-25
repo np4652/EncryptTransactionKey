@@ -5,6 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using APIApplication.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using EncryptTransactionKey.DataContext;
+using EncryptTransactionKey.Model;
+using System.Collections.Generic;
 
 namespace APIApplication
 {
@@ -20,12 +23,12 @@ namespace APIApplication
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            List<API> apis = new List<API>();
+            Configuration.GetSection("APIs").Bind(apis);
             services.AddControllers();
-            //services.AddDbContext<DataContext.AppContext>(options =>
-            //              options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")
-            //              ));
-            //Register dapper in scope    
             services.AddSingleton<IDapper, Services.Dapper>();
+            services.AddSingleton<List<API>>(apis);
+            services.AddSingleton<IDbContext, DbContext>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

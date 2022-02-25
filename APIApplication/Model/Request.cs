@@ -28,14 +28,22 @@ namespace EncryptTransactionKey.Model
         public string IP { get; set; }
     }
 
-    public class PrivateKeyRequest
+    public class PrivateKeyRequest 
     {
+        public string TID { get; set; }
         public string Address { get; set; }
+        public string RequestType { get; set; }
+        public string Amount { get; set; }
     }
 
     public class BallanceRequest : BaseRequest
     {
         public string WalletAddress { get; set; }
         public string ContractAddress { get; set; }
+    }
+
+    public class GenrateAddressReq: BaseRequest
+    {
+        public string NetworkId { get; set; }
     }
 }

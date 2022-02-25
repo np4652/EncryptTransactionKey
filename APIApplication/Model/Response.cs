@@ -35,12 +35,13 @@ namespace APIApplication.Model
         public bool success { get; set; }
         public Result<T> result { get; set; }
     }
-    public class BinanceAddress
+    public class NetworkAddress
     {
         public int Id { get; set; }
         public string TID { get; set; }
         public string Address { get; set; }
         public string PrivateKey { get; set; }
         public string EntryOn { get; set; }
+        public string NetworkId { get; set; }
     }
 }
