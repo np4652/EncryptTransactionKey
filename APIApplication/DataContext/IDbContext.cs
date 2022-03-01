@@ -10,8 +10,8 @@ namespace EncryptTransactionKey.DataContext
     public interface IDbContext
     {
         Task<NetworkAddress> SaveNetworkAddress(NetworkAddress binanceAddress);
-        Task<NetworkAddress> GetBinanceInfoByAddress(string Address);
-        Task<NetworkAddress> IFAddressExists(string TID);
+        Task<NetworkAddress> GetBinanceInfoByAddress(string Address, string UserId);
+        Task<NetworkAddress> IFAddressExists(string TID,string NetworkId);
         Task<bool> IsIPValid(string IP);
         Task<string> GetSalt(string requestType);
         Task<string> GetSecretKey(string requestType, IDictionary<string, string> keyCollection);

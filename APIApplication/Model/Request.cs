@@ -34,6 +34,8 @@ namespace EncryptTransactionKey.Model
         public string Address { get; set; }
         public string RequestType { get; set; }
         public string Amount { get; set; }
+        [Required]
+        public string UserId { get; set; }
     }
 
     public class BallanceRequest : BaseRequest

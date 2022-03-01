@@ -23,7 +23,7 @@ namespace EncryptTransactionKey.DataContext
             var sqlQuery = @"IF(Select count(1) from NetworkAddress where TID = @TID and ISNULL(NetworkId,'')=@NetworkId) = 0
                                 insert into NetworkAddress(TID,[Address],PrivateKey,EntryOn,NetworkId) 
                                                     values(@TID,@Address,@PrivateKey,GetDate(),@NetworkId)
-                             Select Id,TID,[Address],PrivateKey from NetworkAddress";
+                             Select Id,TID,[Address],PrivateKey from NetworkAddress Where TID=@TID and NetworkId=@NetworkId";
             var param = new DynamicParameters();
             param.Add("TID", binanceAddress.TID, DbType.String);
             param.Add("Address", binanceAddress.Address, DbType.String);
@@ -33,19 +33,21 @@ namespace EncryptTransactionKey.DataContext
             return binanceAddress;
         }
 
-        public async Task<NetworkAddress> GetBinanceInfoByAddress(string Address)
+        public async Task<NetworkAddress> GetBinanceInfoByAddress(string Address,string UserId)
         {
-            var sqlQuery = @"Select Id,TID,[Address],PrivateKey from NetworkAddress(nolock) where [Address] = @Address";
+            var sqlQuery = @"Select Id,TID,[Address],PrivateKey from NetworkAddress(nolock) where [Address] = @Address and TID=@UserId";
             var param = new DynamicParameters();
             param.Add("Address", Address, DbType.String);
+            param.Add("UserId", UserId, DbType.String);
             var binanceAddress = await _dapper.GetAsync<NetworkAddress>(sqlQuery, param, commandType: CommandType.Text);
             return binanceAddress;
         }
-        public async Task<NetworkAddress> IFAddressExists(string TID)
+        public async Task<NetworkAddress> IFAddressExists(string TID,string NetworkId)
         {
-            var sqlQuery = @"Select Id,TID,[Address],PrivateKey from NetworkAddress where TID = @TID";
+            var sqlQuery = @"Select Id,TID,[Address],PrivateKey from NetworkAddress where TID = @TID and NetworkId=@NetworkId";
             var param = new DynamicParameters();
             param.Add("TID", TID, DbType.String);
+            param.Add("NetworkId", NetworkId, DbType.String);
             var binanceAddress = await _dapper.GetAsync<NetworkAddress>(sqlQuery, param, commandType: CommandType.Text);
             return binanceAddress ?? new NetworkAddress();
         }

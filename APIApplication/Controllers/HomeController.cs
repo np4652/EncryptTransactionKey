@@ -53,7 +53,7 @@ namespace APIApplication.Controllers
                 Data = new APIResponse
                 {
                     status = -1,
-                    msg = "Some parameters are not supplied"
+                    msg = "Invalid IP"
                 }
             };
             try
@@ -62,16 +62,12 @@ namespace APIApplication.Controllers
                 request.IP = RemoteIP;
                 bool isIPValid = await _dbContext.IsIPValid(request.IP);
                 if (!isIPValid)
-                {
-                    response.Data.msg = "Invalid IP";
                     goto Finish;
-                }
                 var APIRes = await callAPI(requestedUrl);
                 if (APIRes.status == -1)
                     goto Finish;
                 response.Status = requestedUrl;
                 response.Data = APIRes;
-
             }
             catch (Exception ex)
             {
@@ -84,7 +80,8 @@ namespace APIApplication.Controllers
         [HttpPost(nameof(Encrypt))]
         public async Task<BaseResponse<APIResponse>> Encrypt(EncryptRequest request)
         {
-            string requestedUrl = string.Format(APIUrl, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
+            //string requestedUrl = string.Format(APIUrl, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
+            string requestedUrl = string.Empty;
             var response = new BaseResponse<APIResponse>
             {
                 StatusCode = 503,
@@ -100,12 +97,16 @@ namespace APIApplication.Controllers
             try
             {
                 response = await ValidateTID(request);
-                APIRes = response.Data;
-                if (APIRes.status == -1)
-                    goto Finish;
-
-                APIRes = response.Data;
+                APIRes = response.Data ?? new APIResponse();
                 requestedUrl = response.Status;
+                if (APIRes.status == -1)
+                {
+                    //response.Data = APIRes;
+                    goto Finish;
+                }
+                    
+                //APIRes = response.Data;
+
                 plainText = await _dbContext.GetSecretKey(request.Option3 ?? string.Empty, keyCollection);
 
                 if (string.IsNullOrEmpty(plainText))
@@ -202,7 +203,7 @@ namespace APIApplication.Controllers
                     response.Status = "Invalid IP";
                     goto Finish;
                 }
-                var binanceAddress = await _dbContext.IFAddressExists(request.TID);
+                var binanceAddress = await _dbContext.IFAddressExists(request.TID, request.NetworkId);
                 if (binanceAddress != null && !string.IsNullOrEmpty(binanceAddress.Address))
                 {
                     response = genrateResponse(binanceAddress);
@@ -253,10 +254,11 @@ namespace APIApplication.Controllers
             var response = new BaseResponse<NetworkAddress>
             {
                 StatusCode = 503,
-                Status = "Bad Request"
+                Status = "Bad Request",
             };
             try
             {
+                request.RequestType = string.IsNullOrEmpty(request.RequestType) ? string.Empty : request.RequestType;
                 RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
                 if (request.RequestType.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase))
                 {
@@ -280,8 +282,10 @@ namespace APIApplication.Controllers
                                 PrivateKey = _.Data.msg
                             }
                         };
+                        goto Finish;
                     }
-                    goto Finish;
+                    response.StatusCode = _.Data.status;
+                    response.Status = _?.Data.msg;
                 }
 
                 var validateTID = await ValidateTID(new EncryptRequest
@@ -290,10 +294,11 @@ namespace APIApplication.Controllers
                     Option1 = request.Address,
                     Option2 = request.Amount,
                     Option3 = request.RequestType,
+                    Option4 = request.UserId,
                 });
                 if (validateTID.StatusCode == -1)
                     goto Finish;
-                var binanceAddress = await _dbContext.GetBinanceInfoByAddress(request.Address);
+                var binanceAddress = await _dbContext.GetBinanceInfoByAddress(request.Address, request.UserId);
                 if (binanceAddress != null && !string.IsNullOrEmpty(binanceAddress.PrivateKey))
                 {
                     binanceAddress.PrivateKey = Crypto.O.Decrypt(binanceAddress.TID, binanceAddress.PrivateKey);
