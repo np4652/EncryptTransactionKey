@@ -104,7 +104,7 @@ namespace APIApplication.Controllers
                     //response.Data = APIRes;
                     goto Finish;
                 }
-                    
+
                 //APIRes = response.Data;
 
                 plainText = await _dbContext.GetSecretKey(request.Option3 ?? string.Empty, keyCollection);
@@ -136,7 +136,7 @@ namespace APIApplication.Controllers
         }
 
         [HttpPost(nameof(Decryp))]
-        public BaseResponse<string> Decryp([FromBody] Request request)
+        public BaseResponse<string> Decryp(Request request)
         {
             var response = new BaseResponse<string>
             {
@@ -146,11 +146,12 @@ namespace APIApplication.Controllers
             };
             try
             {
+
                 return new BaseResponse<string>
                 {
                     StatusCode = 1,
                     Status = "Success",
-                    Data = Crypto.O.DecryptUsingPrivateKey(request.PlainText, DocPath.PrivateKey),
+                    Data = string.IsNullOrEmpty(request.Key) ? Crypto.O.DecryptUsingPrivateKey(request.PlainText, DocPath.PrivateKey) : Crypto.O.Decrypt(request.Key, request.PlainText),
                 };
             }
             catch (Exception ex)

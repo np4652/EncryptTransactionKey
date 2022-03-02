@@ -6,6 +6,7 @@ namespace EncryptTransactionKey.Model
     {
         [Required]
         public string PlainText { get; set; }
+        public string Key { get; set; }
     }
 
     public class EncryptRequest : BaseRequest
@@ -28,7 +29,7 @@ namespace EncryptTransactionKey.Model
         public string IP { get; set; }
     }
 
-    public class PrivateKeyRequest 
+    public class PrivateKeyRequest
     {
         public string TID { get; set; }
         public string Address { get; set; }
@@ -44,7 +45,7 @@ namespace EncryptTransactionKey.Model
         public string ContractAddress { get; set; }
     }
 
-    public class GenrateAddressReq: BaseRequest
+    public class GenrateAddressReq : BaseRequest
     {
         public string NetworkId { get; set; }
     }
