@@ -31,12 +31,14 @@ namespace EncryptTransactionKey.Model
 
     public class PrivateKeyRequest
     {
-        public string TID { get; set; }
-        public string Address { get; set; }
-        public string RequestType { get; set; }
-        public string Amount { get; set; }
         [Required]
         public string UserId { get; set; }
+        public string TID { get; set; }
+        public string Address { get; set; }
+        public string ToAddress { get; set; }
+        public string RequestType { get; set; }
+        public string Amount { get; set; }
+        public string RequestFrom { get; set; }
     }
 
     public class BallanceRequest : BaseRequest

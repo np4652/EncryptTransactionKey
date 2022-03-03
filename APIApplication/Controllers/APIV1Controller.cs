@@ -18,7 +18,8 @@ namespace APIApplication.Controllers
     public class APIV1Controller : ControllerBase
     {
         #region variables
-        private string APIUrl;
+        private string validateTID;
+        private string validateExchangeTID;
         private string generateAddress;
         private string getBalance;
         private string RemoteIP = string.Empty;
@@ -34,12 +35,16 @@ namespace APIApplication.Controllers
             _dbContext = dbContext;
             InitializeVariable(apis);
         }
-        
+
         #region APIs
 
-        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request)
+        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request, string requestFrom = "")
         {
-            string requestedUrl = string.Format(APIUrl, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
+            string requestedUrl = string.Format(validateTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
+            if(!string.IsNullOrEmpty(requestFrom) && requestFrom.Equals("node",StringComparison.OrdinalIgnoreCase))
+            {
+                requestedUrl = string.Format(validateExchangeTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
+            }
             var response = new BaseResponse<APIResponse>
             {
                 StatusCode = 503,
@@ -129,6 +134,7 @@ namespace APIApplication.Controllers
             return response;
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost(nameof(Decryp))]
         public BaseResponse<string> Decryp(Request request)
         {
@@ -290,6 +296,7 @@ namespace APIApplication.Controllers
                     Option2 = request.Amount,
                     Option3 = request.RequestType,
                     Option4 = request.UserId,
+                    Option5 = request.ToAddress
                 });
                 if (validateTID.StatusCode == -1)
                     goto Finish;
@@ -461,7 +468,8 @@ namespace APIApplication.Controllers
         private void InitializeVariable(List<API> apis)
         {
             IEnumerable<APIConfig> APIConfig = apis.Where(x => x.Provider.Equals("teamrijent", StringComparison.OrdinalIgnoreCase)).Select(x => x.APIConfig).FirstOrDefault();
-            APIUrl = APIConfig.Where(x => x.Name.Equals("ValidateTID", StringComparison.OrdinalIgnoreCase)).Select(x => x.Url)?.FirstOrDefault();
+            validateTID = APIConfig.Where(x => x.Name.Equals("ValidateTID", StringComparison.OrdinalIgnoreCase)).Select(x => x.Url)?.FirstOrDefault();
+            validateExchangeTID = APIConfig.Where(x => x.Name.Equals("validateExchangeTID", StringComparison.OrdinalIgnoreCase)).Select(x => x.Url)?.FirstOrDefault();
             generateAddress = APIConfig.Where(x => x.Name.Equals("generateAddress", StringComparison.OrdinalIgnoreCase)).Select(x => x.Url)?.FirstOrDefault();
             getBalance = APIConfig.Where(x => x.Name.Equals("getBalance", StringComparison.OrdinalIgnoreCase)).Select(x => x.Url)?.FirstOrDefault();
         }

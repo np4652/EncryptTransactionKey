@@ -37,19 +37,19 @@ namespace APIApplication
                 {
                     Title="Netwrok APIs",
                     Version = "v1.1",
-                    Description="Apis to perform encrypt network keys and genrate wallet addresses",
-                    TermsOfService = new Uri("https://github.com/np4652"),
+                    //Description="Apis to perform encrypt network keys and genrate wallet addresses",
+                    //TermsOfService = new Uri("https://github.com/np4652"),
                     Contact = new OpenApiContact
                     {
                         Name = "Amit Singh",
                         Email = "np4652@gmail.com",
                         Url = new Uri("https://github.com/np4652"),
                     },
-                    License = new OpenApiLicense
-                    {
-                        Name = "API LICX",
-                        Url = new Uri("https://github.com/np4652"),
-                    }
+                    //License = new OpenApiLicense
+                    //{
+                    //    Name = "API LICX",
+                    //    Url = new Uri("https://github.com/np4652"),
+                    //}
                 });
                 option.SwaggerDoc("v2", new OpenApiInfo
                 {
@@ -72,12 +72,16 @@ namespace APIApplication
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
+            app.UseStaticFiles();
             app.UseRouting();
             app.UseAuthorization();
              app.UseSwagger();
             app.UseSwaggerUI(c=> {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
                 c.SwaggerEndpoint("/swagger/v2/swagger.json", "v2");
+                c.InjectStylesheet("/swagger-custom-style.css");
+                c.InjectJavascript("/js/swagger-custom-script.js", "text/javascript");
+                c.DefaultModelsExpandDepth(-1);
             });
             app.UseEndpoints(endpoints =>
             {
