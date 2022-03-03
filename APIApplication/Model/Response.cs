@@ -8,7 +8,6 @@ namespace APIApplication.Model
         public int StatusCode { get; set; }
         public string Status { get; set; }
         public T Data { get; set; }
-        public Exception Exception { get; set; }
         [JsonIgnore]
         public bool IsModelValid { get; set; }
     }
