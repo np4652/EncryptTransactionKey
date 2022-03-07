@@ -78,16 +78,24 @@ namespace EncryptTransactionKey.DataContext
             return salt ?? string.Empty;
         }
 
-        public async Task<string> GetSecretKey(string requestType, IDictionary<string, string> keyCollection)
+        public async Task<string> GetSecretKey(string requestType, IDictionary<string, string> keyCollection,string userId,string toAddress)
         {
             string key = string.Empty;
             try
             {
                 if (!string.IsNullOrEmpty(requestType) && requestType.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase))
                 {
-                    string k = keyCollection["Withdrawalkey"];
-                    string salt = await _dapper.GetAsync<string>(@"select top 1 [WithdrawalSalt] from SecretKey(nolock)", null, commandType: CommandType.Text);
-                    key = string.Concat(salt, k);
+                    string sqlQuery = @"IF Exists(select * from NetworkAddress(nolock) where [Address] = @toAddress and TID = @userId)
+	                                        select top 1 [WithdrawalSalt] from SecretKey(nolock)";
+                    var param = new DynamicParameters();
+                    param.Add("toAddress", toAddress, DbType.String);
+                    param.Add("userId", userId, DbType.String);
+                    string salt = await _dapper.GetAsync<string>(sqlQuery, param, commandType: CommandType.Text);
+                    if (!string.IsNullOrEmpty(salt))
+                    {
+                        string k = keyCollection["Withdrawalkey"];
+                        key = string.Concat(salt, k);
+                    }
                 }
                 else
                 {

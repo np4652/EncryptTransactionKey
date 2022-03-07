@@ -41,7 +41,7 @@ namespace APIApplication.Controllers
         private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request, string requestFrom = "")
         {
             string requestedUrl = string.Format(validateTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
-            if(!string.IsNullOrEmpty(requestFrom) && requestFrom.Equals("node",StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(requestFrom) && requestFrom.Equals("node", StringComparison.OrdinalIgnoreCase))
             {
                 requestedUrl = string.Format(validateExchangeTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
             }
@@ -65,6 +65,7 @@ namespace APIApplication.Controllers
                 var APIRes = await callAPI(requestedUrl);
                 if (APIRes.status == -1)
                     goto Finish;
+                response.StatusCode = APIRes.status;
                 response.Status = requestedUrl;
                 response.Data = APIRes;
             }
@@ -106,7 +107,7 @@ namespace APIApplication.Controllers
 
                 //APIRes = response.Data;
 
-                plainText = await _dbContext.GetSecretKey(request.Option3 ?? string.Empty, keyCollection);
+                plainText = await _dbContext.GetSecretKey(request.Option3 ?? string.Empty, keyCollection,request.Option4,request.Option5);
 
                 if (string.IsNullOrEmpty(plainText))
                 {
@@ -269,6 +270,8 @@ namespace APIApplication.Controllers
                         Option1 = request.Address,
                         Option2 = request.Amount,
                         Option3 = request.RequestType,
+                        Option4 = request.UserId,
+                        Option5 = request.ToAddress
                     });
                     if (_.StatusCode == 1)
                     {
@@ -298,8 +301,13 @@ namespace APIApplication.Controllers
                     Option4 = request.UserId,
                     Option5 = request.ToAddress
                 });
-                if (validateTID.StatusCode == -1)
+                if (validateTID.StatusCode == -1 || validateTID.StatusCode == 503)
+                {
+                    response.StatusCode = validateTID.Data.status;
+                    response.Status = validateTID.Data.msg;
                     goto Finish;
+                }
+                    
                 var binanceAddress = await _dbContext.GetBinanceInfoByAddress(request.Address, request.UserId);
                 if (binanceAddress != null && !string.IsNullOrEmpty(binanceAddress.PrivateKey))
                 {
@@ -310,8 +318,10 @@ namespace APIApplication.Controllers
                         Status = "Success",
                         Data = binanceAddress
                     };
+                    goto Finish;
                 }
-                goto Finish;
+                response.StatusCode = -1;
+                response.Status = "Credentials failed";
             }
             catch (Exception ex)
             {
