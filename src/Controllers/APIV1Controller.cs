@@ -38,10 +38,10 @@ namespace APIApplication.Controllers
 
         #region APIs
 
-        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request, string requestFrom = "")
+        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request)
         {
             string requestedUrl = string.Format(validateTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
-            if (!string.IsNullOrEmpty(requestFrom) && requestFrom.Equals("node", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(request.RequestFrom) && request.RequestFrom.Equals("node", StringComparison.OrdinalIgnoreCase))
             {
                 requestedUrl = string.Format(validateExchangeTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
             }
@@ -262,17 +262,19 @@ namespace APIApplication.Controllers
             {
                 request.RequestType = string.IsNullOrEmpty(request.RequestType) ? string.Empty : request.RequestType;
                 RemoteIP = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+                var encryptRequest = new EncryptRequest
+                {
+                    TID = request.TID,
+                    Option1 = request.Address,
+                    Option2 = request.Amount,
+                    Option3 = request.RequestType,
+                    Option4 = request.UserId,
+                    Option5 = request.ToAddress,
+                    RequestFrom = request.RequestFrom,
+                };
                 if (request.RequestType.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase))
                 {
-                    var _ = await Encrypt(new EncryptRequest
-                    {
-                        TID = request.TID,
-                        Option1 = request.Address,
-                        Option2 = request.Amount,
-                        Option3 = request.RequestType,
-                        Option4 = request.UserId,
-                        Option5 = request.ToAddress
-                    });
+                    var _ = await Encrypt(encryptRequest);
                     if (_.StatusCode == 1)
                     {
                         response = new BaseResponse<NetworkAddress>
@@ -291,16 +293,7 @@ namespace APIApplication.Controllers
                     response.StatusCode = _.Data.status;
                     response.Status = _?.Data.msg;
                 }
-
-                var validateTID = await ValidateTID(new EncryptRequest
-                {
-                    TID = request.TID,
-                    Option1 = request.Address,
-                    Option2 = request.Amount,
-                    Option3 = request.RequestType,
-                    Option4 = request.UserId,
-                    Option5 = request.ToAddress
-                });
+                var validateTID = await ValidateTID(encryptRequest);
                 if (validateTID.StatusCode == -1 || validateTID.StatusCode == 503)
                 {
                     response.StatusCode = validateTID.Data.status;
