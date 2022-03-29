@@ -38,10 +38,10 @@ namespace APIApplication.Controllers
 
         #region APIs
 
-        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request, string requestFrom = "")
+        private async Task<BaseResponse<APIResponse>> ValidateTID(EncryptRequest request)
         {
             string requestedUrl = string.Format(validateTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
-            if (!string.IsNullOrEmpty(requestFrom) && requestFrom.Equals("node", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(request.RequestFrom) && request.RequestFrom.Equals("node", StringComparison.OrdinalIgnoreCase))
             {
                 requestedUrl = string.Format(validateExchangeTID, request.TID.ToString(), request.Option1, request.Option2, request.Option3, request.Option4, request.Option5);
             }
@@ -299,7 +299,8 @@ namespace APIApplication.Controllers
                     Option2 = request.Amount,
                     Option3 = request.RequestType,
                     Option4 = request.UserId,
-                    Option5 = request.ToAddress
+                    Option5 = request.ToAddress,
+                    RequestFrom = request.RequestFrom
                 });
                 if (validateTID.StatusCode == -1 || validateTID.StatusCode == 503)
                 {
